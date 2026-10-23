@@ -1,6 +1,6 @@
 module hatamoto.dev/sdk
 
-go 1.27
+go 1.26
 
 toolchain go1.27.3
 

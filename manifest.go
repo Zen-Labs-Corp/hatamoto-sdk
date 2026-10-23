@@ -489,11 +489,17 @@ func (m Manifest) validateRoutes() (err error) {
 
 // Compatible reports whether this SDK satisfies the manifest's SDK range.
 func (m Manifest) Compatible() (bool, error) {
-	if ok, err := Satisfies(Version, m.SDK); err != nil || ok {
+	return compatibleWith(Version, CompatibleWith, m.SDK)
+}
+
+// compatibleWith is Compatible with the host values passed in, so tests can
+// model another host.
+func compatibleWith(version string, list []string, rng string) (bool, error) {
+	if ok, err := Satisfies(version, rng); err != nil || ok {
 		return ok, err
 	}
-	for _, v := range CompatibleWith {
-		if ok, _ := Satisfies(v, m.SDK); ok {
+	for _, v := range list {
+		if ok, _ := Satisfies(v, rng); ok {
 			return true, nil
 		}
 	}

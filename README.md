@@ -7,7 +7,7 @@ on nothing but the standard library, never imports Hatamoto core packages, and t
 module has its own `go.mod`.
 
 ```sh
-go get hatamoto.dev/sdk@v0.11.0
+go get hatamoto.dev/sdk@v0.12.0
 ```
 
 Releases are plain `vX.Y.Z` tags of this repository, where `X.Y.Z` is the `Version`
@@ -32,14 +32,16 @@ examples built on this module.
 
 ## Versioning
 
-Semantic. Minor releases are additive only: new hooks, new optional payload
-fields, new manifest fields. Removing or renaming a hook, an export name or a
-field is a breaking change and bumps the major version (before 1.0, the minor).
-`Version` is the current version; `CompatibleWith` lists earlier versions whose
-plugins this SDK still serves.
+Semantic, with the pre-1.0 rules in [STABILITY.md](STABILITY.md):
+while the SDK is 0.x a minor release may change behaviour, but only after the change was announced as a
+deprecation notice in an earlier SDK minor and recorded in the release notes. A patch never breaks a covered surface, except a security exception, which says so in its
+release note and advisory. `Version` is the current version; `CompatibleWith` lists every
+earlier 0.x minor from 0.5.0, and a host keeps serving all of them until 1.0. A plugin declares the oldest range it
+needs in `plugin.json` (today `"sdk": "^0.11"`, so hosts before v0.31.0 still load it); a host refuses a plugin whose range matches neither.
 
 | SDK | Change |
 |---|---|
+| 0.12.0 | `site.scripts` permission: a plugin's browser JavaScript (`assets/plugin.js`) is served and injected only once it is granted |
 | 0.11.0 | `builder.data` filter + permission and `builder_sources` manifest field: plugin data sources (values and item lists) for the page builder |
 | 0.10.0 | Entity host functions: `parent_id` on create/update, `parent_id`/`path`/`url` on Entity, `entities.get` by `path` or `parent_id`+`slug`(+`schema_slug`) |
 | 0.5.0 | Native Go plugins removed. Plugins are sandboxed WASM modules; payloads are JSON with snake_case fields; `guest` package added; no `pgx` or router types |

@@ -117,7 +117,7 @@ func TestManifestValidate(t *testing.T) {
 }
 
 func TestCompatible(t *testing.T) {
-	for rng, want := range map[string]bool{"^0.5": true, "^0.4": false, ">=0.5 <1": true, "^0.8": true, "^0.9": true, "^0.10": true, "^0.11": true, "^0.12": false} {
+	for rng, want := range map[string]bool{"^0.5": true, "^0.4": false, ">=0.5 <1": true, "^0.8": true, "^0.9": true, "^0.10": true, "^0.11": true, "^0.12": true, "^0.13": false} {
 		got, err := Manifest{SDK: rng}.Compatible()
 		if err != nil || got != want {
 			t.Errorf("Compatible(%s) = %v,%v want %v", rng, got, err, want)
@@ -230,5 +230,14 @@ func TestBuilderDataRoundTrip(t *testing.T) {
 		if !strings.Contains(string(b), key) {
 			t.Errorf("missing %s in %s", key, b)
 		}
+	}
+}
+
+// Validate does not tie a permission to a minimum sdk range: a plugin may ask
+// for site.scripts while declaring an older range.
+func TestValidateAcceptsSiteScriptsUnderOldRange(t *testing.T) {
+	m := Manifest{Name: "hello-world", Version: "0.1.0", SDK: "^0.11", Permissions: []string{PermSiteScripts}}
+	if err := m.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
 	}
 }

@@ -41,6 +41,13 @@ const (
 	// visitor's privileges, so the owner grants it explicitly; without the
 	// grant the widget still renders but its island is not served.
 	PermBuilderIsland Permission = "builder.island"
+	// PermSiteScripts is required for a plugin's browser JavaScript to run on
+	// the public site: its assets/plugin.js is linked on pages, and the
+	// script-src tags of its render.head filter are emitted, only while
+	// granted. That script runs with the visitor's privileges, including a
+	// signed-in admin's, so the owner grants it explicitly. plugin.css needs
+	// no grant.
+	PermSiteScripts Permission = "site.scripts"
 )
 
 // Permissions lists every capability, in a stable order.
@@ -49,7 +56,7 @@ var Permissions = []Permission{
 	PermMenusRead, PermMenusWrite, PermMediaRead, PermMediaWrite,
 	PermRedirectsRead, PermRedirectsWrite, PermFormsRead,
 	PermSettings, PermLog, PermMailSend, PermHTTPFetch, PermHTTPFetchAny, PermKV, PermDB,
-	PermBuilderData, PermBuilderIsland,
+	PermBuilderData, PermBuilderIsland, PermSiteScripts,
 }
 
 // ValidPermission reports whether p is a known capability.
