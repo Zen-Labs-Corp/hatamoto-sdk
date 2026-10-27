@@ -12,7 +12,7 @@ the name is given. Where it is project policy only, the text says so. Paths in c
 |---|---|---|
 | Product (the `hatamoto` binary) | `vX.Y.Z`, git tag `vX.Y.Z` | `v0.31.0` |
 | Go module for the product source | `hatamoto.dev/core`, git tag `backend/vX.Y.Z`, created by `scripts/tag-release.sh` | follows the product |
-| Plugin SDK (`hatamoto.dev/sdk`) | semantic, git tag `vA.B.C` in the public `zenlabscorp/hatamoto-sdk` repository, exported from this repository by `scripts/publish-sdk.sh` | `0.12.0`, shipped with product `v0.31.0` |
+| Plugin SDK (`hatamoto.dev/sdk`) | semantic, git tag `vA.B.C` in the public `Zen-Labs-Corp/hatamoto-sdk` repository, exported from this repository by `scripts/publish-sdk.sh` | `0.13.0` (`0.12.0` shipped with product `v0.31.0`) |
 | Plugin manifest | the `sdk` range in `plugin.json` | follows the SDK |
 | Theme contract | `data-hm-contract` on `<html>` | `1` |
 | HTTP API | `/api/v1` path prefix | `v1` |
@@ -26,8 +26,8 @@ Levels:
 
 - **stable (pre-1.0 rules)**: you can build on it. A change follows the rule named in the third column,
   and the 0.x rules in "What 0.x means" apply until 1.0.
-- **experimental**: may change without notice. No surface is experimental today. Anything marked
-  experimental in its own documentation gets this level.
+- **experimental**: may change without notice. The one planned experimental surface is the content delivery API,
+  which is not yet shipped. Anything marked experimental in its own documentation gets this level.
 - **not covered**: no promise.
 
 | Surface | Level | Change rule | Authoritative doc |
@@ -42,12 +42,23 @@ Levels:
 | Builder data sources | stable (pre-1.0 rules) | SDK rule for the plugin side, product rule for the widget side | `docs/WIDGET_PACKS.md` (Data sources), `docs/BUILDER.md` |
 | REST `/api/v1` (the route table is pinned by `routes.golden`) | stable (pre-1.0 rules) | product rule; `/api/v1` is kept at least 12 months after `/api/v2` ships | `docs/PLUGIN_API.md` for plugin routes, route table in `backend/internal/server/routes_table.go` |
 | MCP tools and scopes | stable (pre-1.0 rules) | product rule | `docs/MCP.md` |
+| Content `locale` field (REST `/api/v1`, MCP, webhooks, delivery JSON once it ships; SDK payloads) | stable (pre-1.0 rules) | product rule for REST, MCP, webhooks and delivery JSON (once it ships); SDK rule for SDK payloads | `docs/URL_PATTERNS.md` (Locale), `docs/MCP.md`, `docs/WEBHOOKS.md` |
 | CLI commands and flags | stable (pre-1.0 rules) | product rule | `docs/CLI.md`, [`docs/site/operate/cli-reference.md`](https://hatamoto.dev/docs/operate/cli-reference) |
 | Environment variables and configuration | stable (pre-1.0 rules) | product rule | [`docs/site/operate/configuration-reference.md`](https://hatamoto.dev/docs/operate/configuration-reference) |
 | `.hmp` package format | stable (pre-1.0 rules) | product rule | `docs/PACKAGES.md` |
 | Registry index format (signed envelope, `version: 1`) | stable (pre-1.0 rules) | product rule | `docs/PACKAGES.md` (Registry), `registry/README.md` |
 | Release and update protocol: channels, signed manifests, ramp, yanks, rollback floor | stable (pre-1.0 rules) | schema rules and product rule | `docs/UPGRADES.md`, [`docs/site/updates/upgrade-rules-and-support.md`](https://hatamoto.dev/docs/updates/upgrade-rules-and-support), [`docs/site/updates/trust-and-signing.md`](https://hatamoto.dev/docs/updates/trust-and-signing) |
+| Content delivery API (read-only content JSON for headless sites; not yet shipped) | experimental | none: no stability promise before its v1 | none yet; it is announced before it ships |
+| The admin URL (per install, printed by `hatamoto admin-url`; use the delivery API and REST keys instead) | not covered | none | "What is not covered" below, `docs/UPGRADES.md` |
 | Admin UI HTML, internal Go packages (`backend/internal/**`), log lines and error text, plugin runtime internals (wazero) | not covered | none | "What is not covered" below |
+
+One language per install; multilingual UI not yet. Every content entity carries a `locale` (BCP 47),
+slugs are unique per schema and locale, and public pages serve only the site language.
+
+The SDK is bumped to 0.13.0 for `locale` although no rule here requires it for an additive field
+(plugins ignore unknown JSON fields, and no permission is involved), because a published SDK tree cannot
+change under the same version (`scripts/publish-sdk.sh` refuses to retag a different tree) and 0.10 and
+0.11 set the precedent of shipping additive payload changes as a minor.
 
 ## What 0.x means
 
@@ -75,15 +86,15 @@ The `sdk` range in `plugin.json` is the handshake between a plugin and a host. A
 SDK version (`sdk.Version`) and every version in `sdk.CompatibleWith`, and refuses a plugin whose range
 matches none of them.
 
-- Every 0.x SDK minor from 0.5 stays served until 1.0. Today `Version` is `0.12.0` and
-  `CompatibleWith` is `0.5.0` to `0.11.0`. Dropping an entry is a breaking change and is announced like
+- Every 0.x SDK minor from 0.5 stays served until 1.0. Today `Version` is `0.13.0` and
+  `CompatibleWith` is `0.5.0` to `0.12.0`. Dropping an entry is a breaking change and is announced like
   any other.
-- A newer host serves older ranges. An older host refuses a newer range: a host before v0.31.0 refuses
-  a plugin that declares `^0.12`. Declare the oldest range your plugin needs.
+- A newer host serves older ranges. An older host refuses a newer range: a host that serves 0.12 refuses
+  a plugin that declares `^0.13`. Declare the oldest range your plugin needs.
 - Three tests pin this in `backend/pkg/sdk`: `TestVersionPinned` (the version constant),
   `TestCompatibleWithPinned` (the exact list, sorted, without the current version) and
-  `TestCompatibleWithOldHost` (a host that reports 0.11.0 refuses `^0.12` and accepts `^0.11`,
-  `^0.10` and `^0.5`). Changing the version or the list means changing those tests in the same commit.
+  `TestCompatibleWithOldHost` (a host that reports 0.12.0 refuses `^0.13` and accepts `^0.12`,
+  `^0.11`, `^0.10` and `^0.5`). Changing the version or the list means changing those tests in the same commit.
 - Load and install both report a refusal through `pluginhost.SDKRefusal` in
   `backend/internal/pluginhost/compat.go`, a core helper that is not part of the SDK. The message
   names the plugin, the range it asked for, the host's SDK version and the minors the host serves.
@@ -113,9 +124,10 @@ tags added through `render.head`, scripted sections and partials), so under the 
 needed an SDK minor bump, a release note and a deprecation notice first. It had none of them when it
 shipped. We count that as a mistake we are correcting, not as precedent.
 
-Plugin JavaScript runs with the privileges of the visitor or the admin who loads the page
-(`docs/PLUGIN_API.md`, Permissions: "full access to the site, including signed-in admins"), so the
-change would have fit the security exception below. It was not labelled as one when it shipped, and we do not claim the exception after the fact. From now on a change
+When it shipped, plugin JavaScript ran with the privileges of whoever loaded the page, including
+signed-in admins. Today the admin is sealed against page scripts (`docs/SECURITY_MODEL.md`, Admin
+isolation). Gating it kept the permission boundary true, so the change would have fit the security
+exception below. It was not labelled as one when it shipped, and we do not claim the exception after the fact. From now on a change
 that relies on the exception says so in its release note and advisory, or it follows the normal window.
 The release notes for v0.31.0 describe the change and the version it belongs to.
 
@@ -182,6 +194,11 @@ The `/changelog` page lists merged changes. It is not where deprecation notices 
 
 ## What is not covered
 
+- The admin URL. It is per install: a fresh install gets a private random address, an upgraded one keeps
+  `/admin` until its owner changes it, and `hatamoto admin-url` prints it. Do not build on it. The
+  delivery API and REST keys are the contract.
+- The body of `/health` and `/ready` (the plain `ok` answer to anyone, and the JSON detail that needs a
+  session or key), and the name of the admin session cookie.
 - Admin UI markup, CSS class names and JavaScript.
 - Anything under `backend/internal/`. The server is not a library: do not import its packages.
 - Identifiers that are not exported, and the database schema (table and column names, indexes).
@@ -197,6 +214,6 @@ The `/changelog` page lists merged changes. It is not where deprecation notices 
 
 A change to a covered surface that was not announced as described here is a bug. For a break in the
 SDK, the manifest, a hook or a permission, open an issue on the public SDK repository,
-https://github.com/zenlabscorp/hatamoto-sdk/issues, with the versions before and after. Once the
+https://github.com/Zen-Labs-Corp/hatamoto-sdk/issues, with the versions before and after. Once the
 Hatamoto core repository is public, you can open it there instead. Report a security problem to
 security@hatamoto.dev, as `SECURITY.md` describes.

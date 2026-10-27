@@ -7,7 +7,7 @@ on nothing but the standard library, never imports Hatamoto core packages, and t
 module has its own `go.mod`.
 
 ```sh
-go get hatamoto.dev/sdk@v0.12.0
+go get hatamoto.dev/sdk@v0.13.0
 ```
 
 Releases are plain `vX.Y.Z` tags of this repository, where `X.Y.Z` is the `Version`
@@ -15,7 +15,7 @@ constant in `version.go`. This repository is a one-way export of the `backend/pk
 directory of the Hatamoto core repository, which stays the source of truth, so
 changes are made upstream in Hatamoto core and exported here. Report SDK bugs and
 send proposals as issues or pull requests on this repository
-([github.com/zenlabscorp/hatamoto-sdk](https://github.com/zenlabscorp/hatamoto-sdk));
+([github.com/Zen-Labs-Corp/hatamoto-sdk](https://github.com/Zen-Labs-Corp/hatamoto-sdk));
 a pull request is applied upstream and arrives back in the next release.
 
 `hatamoto.dev/sdk/guest` is the Go guest layer: a thin wrapper
@@ -26,8 +26,8 @@ PDK side for `GOOS=wasip1`.
 Everything about writing a plugin (export names, JSON schemas of every payload,
 manifest, limits, the Go quick start) is in the plugin documentation on
 <https://hatamoto.dev/docs> (the plugin API reference ships with Hatamoto core). The first-party plugins
-[gtm](https://github.com/zenlabscorp/hatamoto-plugin-gtm) and
-[searchconsole](https://github.com/zenlabscorp/hatamoto-plugin-searchconsole) are real
+[gtm](https://github.com/Zen-Labs-Corp/hatamoto-plugin-gtm) and
+[searchconsole](https://github.com/Zen-Labs-Corp/hatamoto-plugin-searchconsole) are real
 examples built on this module.
 
 ## Versioning
@@ -41,6 +41,7 @@ needs in `plugin.json` (today `"sdk": "^0.11"`, so hosts before v0.31.0 still lo
 
 | SDK | Change |
 |---|---|
+| 0.13.0 | `locale` field on the entity payloads (`EntityRef`, `EntityEvent`, `EntitySummary`, `EntityDraft`). Purely additive |
 | 0.12.0 | `site.scripts` permission: a plugin's browser JavaScript (`assets/plugin.js`) is served and injected only once it is granted |
 | 0.11.0 | `builder.data` filter + permission and `builder_sources` manifest field: plugin data sources (values and item lists) for the page builder |
 | 0.10.0 | Entity host functions: `parent_id` on create/update, `parent_id`/`path`/`url` on Entity, `entities.get` by `path` or `parent_id`+`slug`(+`schema_slug`) |

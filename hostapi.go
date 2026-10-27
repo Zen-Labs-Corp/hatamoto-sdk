@@ -54,8 +54,8 @@ func (e *HostError) Error() string { return fmt.Sprintf("hatamoto host: %s: %s",
 const (
 	FnEntitiesGet    = "entities.get"    // {id} | {path} | {slug, parent_id?, schema_slug? (with parent_id)} -> Entity
 	FnEntitiesList   = "entities.list"   // {schema_slug, status?, search?, limit?, cursor?} -> {items, next_cursor}
-	FnEntitiesCreate = "entities.create" // {schema_slug, name, slug?, parent_id?, attributes} -> Entity
-	FnEntitiesUpdate = "entities.update" // {id, name?, slug?, parent_id? (null = root), attributes?} -> Entity
+	FnEntitiesCreate = "entities.create" // {schema_slug, name, slug?, locale?, parent_id?, attributes} -> Entity
+	FnEntitiesUpdate = "entities.update" // {id, name?, slug?, locale?, parent_id? (null = root), attributes?} -> Entity
 	FnEntitiesStatus = "entities.set_status"
 	FnEntitiesDelete = "entities.delete"
 

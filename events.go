@@ -12,6 +12,7 @@ type EntityRef struct {
 	ID         string `json:"id"`
 	SchemaSlug string `json:"schema_slug"`
 	Slug       string `json:"slug"`
+	Locale     string `json:"locale"`
 	Name       string `json:"name"`
 	Status     string `json:"status"`
 	Version    int    `json:"version"`
@@ -22,6 +23,7 @@ type EntityEvent struct {
 	ID         string `json:"id"`
 	SchemaSlug string `json:"schema_slug"`
 	Slug       string `json:"slug"`
+	Locale     string `json:"locale"`
 	Name       string `json:"name"`
 	Status     string `json:"status"`
 	Version    int    `json:"version"`
@@ -143,11 +145,13 @@ type SitemapURLs struct {
 // EntityDraft is the value filtered by entity.before_save. Operation is one
 // of "create", "update" or "restore"; ID is empty for create.
 type EntityDraft struct {
-	Operation  string          `json:"operation"`
-	ID         string          `json:"id"`
-	SchemaSlug string          `json:"schema_slug"`
-	Name       string          `json:"name"`
-	Slug       string          `json:"slug"`
+	Operation  string `json:"operation"`
+	ID         string `json:"id"`
+	SchemaSlug string `json:"schema_slug"`
+	Name       string `json:"name"`
+	Slug       string `json:"slug"`
+	// Locale is the entity's BCP 47 tag; the host does not read it back.
+	Locale     string          `json:"locale,omitempty"`
 	Attributes json.RawMessage `json:"attributes"`
 }
 
@@ -189,6 +193,7 @@ type EntitySummary struct {
 	ID         string `json:"id"`
 	SchemaSlug string `json:"schema_slug"`
 	Slug       string `json:"slug"`
+	Locale     string `json:"locale"`
 	Name       string `json:"name"`
 }
 
