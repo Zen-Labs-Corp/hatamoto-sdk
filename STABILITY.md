@@ -12,7 +12,7 @@ the name is given. Where it is project policy only, the text says so. Paths in c
 |---|---|---|
 | Product (the `hatamoto` binary) | `vX.Y.Z`, git tag `vX.Y.Z` | `v0.31.0` |
 | Go module for the product source | `hatamoto.dev/core`, git tag `backend/vX.Y.Z`, created by `scripts/tag-release.sh` | follows the product |
-| Plugin SDK (`hatamoto.dev/sdk`) | semantic, git tag `vA.B.C` in the public `Zen-Labs-Corp/hatamoto-sdk` repository, exported from this repository by `scripts/publish-sdk.sh` | `0.13.0` (`0.12.0` shipped with product `v0.31.0`) |
+| Plugin SDK (`hatamoto.dev/sdk`) | semantic, git tag `vA.B.C` in the public `Zen-Labs-Corp/hatamoto-sdk` repository, exported from this repository by `scripts/publish-sdk.sh` | `0.18.0` (`0.12.0` shipped with product `v0.31.0`) |
 | Plugin manifest | the `sdk` range in `plugin.json` | follows the SDK |
 | Theme contract | `data-hm-contract` on `<html>` | `1` |
 | HTTP API | `/api/v1` path prefix | `v1` |
@@ -55,10 +55,14 @@ Levels:
 One language per install; multilingual UI not yet. Every content entity carries a `locale` (BCP 47),
 slugs are unique per schema and locale, and public pages serve only the site language.
 
-The SDK is bumped to 0.13.0 for `locale` although no rule here requires it for an additive field
+The SDK is bumped to 0.13.0 for `locale`, to 0.14.0 for the form attribution and to 0.15.0 for the locale support, and to 0.16.0 for the site graph filter although no rule here requires it for an additive field
 (plugins ignore unknown JSON fields, and no permission is involved), because a published SDK tree cannot
 change under the same version (`scripts/publish-sdk.sh` refuses to retag a different tree) and 0.10 and
 0.11 set the precedent of shipping additive payload changes as a minor.
+
+The 0.18.0 bump is additive over 0.17 (eight items, listed in `version.go`).
+
+The 0.17.0 bump is not additive: it removes the direct content write permissions and functions in favour of runs and changesets, shipped with core 1.1.0 (see the one-time exception below).
 
 ## What 0.x means
 
@@ -71,6 +75,14 @@ change under the same version (`scripts/publish-sdk.sh` refuses to retag a diffe
   policy, and its migrations may only expand the schema. A change that contracts the schema (drop,
   rename, retype) needs a major release. See "Release and update protocol".
 - From 1.0 the usual semantic versioning applies: no breaking change inside a major version.
+
+### One-time exception: core 1.1.0 and SDK 0.17
+
+Core 1.1.0 and SDK 0.17 make one deliberate hard break: the direct content write
+functions of the plugin API are removed in favour of changesets, with no
+compatibility shim. This is a one-time exception granted by the owner, so it
+ships as a minor release of core and the SDK. It is tracked by
+[ADR 0004](docs/adr/0004-plugin-changesets.md) and is not a precedent.
 
 The change rules in the table are:
 
@@ -86,11 +98,11 @@ The `sdk` range in `plugin.json` is the handshake between a plugin and a host. A
 SDK version (`sdk.Version`) and every version in `sdk.CompatibleWith`, and refuses a plugin whose range
 matches none of them.
 
-- Every 0.x SDK minor from 0.5 stays served until 1.0. Today `Version` is `0.13.0` and
-  `CompatibleWith` is `0.5.0` to `0.12.0`. Dropping an entry is a breaking change and is announced like
+- Every 0.x SDK minor from 0.5 stays served until 1.0. Today `Version` is `0.18.0` and
+  `CompatibleWith` is `0.5.0` to `0.17.0`. Dropping an entry is a breaking change and is announced like
   any other.
-- A newer host serves older ranges. An older host refuses a newer range: a host that serves 0.12 refuses
-  a plugin that declares `^0.13`. Declare the oldest range your plugin needs.
+- A newer host serves older ranges. An older host refuses a newer range: a host that serves 0.17 refuses
+  a plugin that declares `^0.18`. Declare the oldest range your plugin needs.
 - Three tests pin this in `backend/pkg/sdk`: `TestVersionPinned` (the version constant),
   `TestCompatibleWithPinned` (the exact list, sorted, without the current version) and
   `TestCompatibleWithOldHost` (a host that reports 0.12.0 refuses `^0.13` and accepts `^0.12`,
@@ -107,6 +119,8 @@ matches none of them.
 - A new permission for a new capability is additive and ships in an SDK minor.
 - Gating an existing capability behind a permission is a behaviour change. It needs an SDK minor bump,
   a release note and, unless it is a security exception, a deprecation notice first.
+- Removing the direct content write permissions in SDK 0.17 is the one-time exception described under
+  "What 0.x means", not a precedent.
 - A permission is never granted automatically: the owner grants it under Plugins > Permissions. An
   update that widens reach (new allowed hosts, `http.fetch.any`, `builder.island`, `site.scripts`) also
   needs the owner's confirmation before it installs (`ConfirmationRequired` in

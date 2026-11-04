@@ -39,19 +39,42 @@ type ImportEvent struct {
 }
 
 // HeadContext is the payload of the render.head filter. Path, Language,
-// SchemaSlug and EntityID describe the page; a filter appends to Tags.
+// SchemaSlug and EntityID describe the page; Locale and Segment name its locale
+// on a multi-locale site (since 0.15.0); a filter appends to Tags.
 // A filter that supplies its own Organization/WebSite graph as jsonld tags
 // sets ReplaceSiteGraph so the host omits its generic site graph. The flag
 // is preserved as long as later filters return the context they were given.
 // It is fail-open: if the chain times out or panics, or no valid jsonld tag
 // results, the generic graph is kept. Since 0.2.2.
 type HeadContext struct {
-	Path             string    `json:"path"`
-	Language         string    `json:"language"`
-	SchemaSlug       string    `json:"schema_slug"`
-	EntityID         string    `json:"entity_id"`
+	Path       string `json:"path"`
+	Language   string `json:"language"`
+	SchemaSlug string `json:"schema_slug"`
+	EntityID   string `json:"entity_id"`
+	// Locale is the BCP 47 tag of the page; empty on a one-language site.
+	Locale string `json:"locale,omitempty"`
+	// Segment is the stored URL segment of Locale; empty for an unprefixed
+	// default locale and on a one-language site.
+	Segment          string    `json:"segment,omitempty"`
 	Tags             []HeadTag `json:"tags,omitempty"`
 	ReplaceSiteGraph bool      `json:"replace_site_graph"`
+}
+
+// SiteGraph is the payload of the render.site_graph filter (since 0.16.0).
+// Nodes are the JSON-LD nodes of the page's generic site graph. A filter may
+// add keys to the Organization, LocalBusiness and WebSite nodes and append
+// nodes with a new unique @id; it cannot change an @id, a @type or an existing
+// key. It is fail-open: on an error, timeout or oversized result the graph is
+// unchanged and the page is not cached.
+type SiteGraph struct {
+	Path       string `json:"path"`
+	Language   string `json:"language"`
+	SchemaSlug string `json:"schema_slug"`
+	EntityID   string `json:"entity_id"`
+	// Locale and Segment name the page's locale on a multi-locale site.
+	Locale  string           `json:"locale,omitempty"`
+	Segment string           `json:"segment,omitempty"`
+	Nodes   []map[string]any `json:"nodes"`
 }
 
 // HeadTag is one head tag. Kind is meta, link, script-src or jsonld. The host
@@ -124,7 +147,7 @@ const MaxSitemapAdditions = 5000
 
 // SitemapURLs is the value filtered by sitemap.urls for one sitemap file.
 //
-// The host sends only Group and Language, and in Add the entries that
+// The host sends only Group, Language, Segment and File, and in Add the entries that
 // sitemap.urls filters before this one already added (empty for the first):
 // never the file's own URL list, because a Go guest spends about 0.5 s per
 // 5,000 URLs to decode and encode one. A plugin appends the entries it wants
@@ -136,9 +159,24 @@ const MaxSitemapAdditions = 5000
 // for the misc sitemap holding static routes. Language is the BCP 47 site
 // language. Filters that add a site-wide URL should target one file (usually
 // Group == "misc") or it appears in many.
+//
+// Since 0.15.0, on a multi-locale site Segment is the stored URL segment of
+// the file's locale (empty for an unprefixed default locale) and File is the
+// full file key ("xx-misc"; Group stays the bare name). Both are empty on a
+// one-language site.
+//
+// With the site setting sitemap_naming "legacy" a prefixed locale has one file
+// holding all its groups: File is that file's key ("xx", not "xx-misc") and the
+// filter runs once per group in it, with Group the bare group name each time,
+// so a plugin that switches on Group == "misc" keeps working. The bare files
+// (File "blog", "misc") hold the shared rows and an unprefixed default locale;
+// the shared ones carry no Language or Segment. The group-mode payload is
+// unchanged.
 type SitemapURLs struct {
 	Group    string       `json:"group"`
 	Language string       `json:"language"`
+	Segment  string       `json:"segment,omitempty"`
+	File     string       `json:"file,omitempty"`
 	Add      []SitemapURL `json:"add"`
 }
 
@@ -165,6 +203,25 @@ type FormSubmittedEvent struct {
 	Fields       map[string]any `json:"fields"`
 	SourcePath   string         `json:"source_path,omitempty"`
 	SubmittedAt  time.Time      `json:"submitted_at"`
+	// Attribution is where the submitter came from (first and last touch of
+	// the browser tab). Absent when none was recorded. Since SDK 0.14.
+	Attribution *FormAttribution `json:"attribution,omitempty"`
+}
+
+// FormTouch is one classified visit source of a submission: channel, source,
+// medium, campaign and landing path. It never holds a URL, address or identifier.
+type FormTouch struct {
+	Channel  string `json:"channel,omitempty"`
+	Source   string `json:"source,omitempty"`
+	Medium   string `json:"medium,omitempty"`
+	Campaign string `json:"campaign,omitempty"`
+	Landing  string `json:"landing,omitempty"`
+}
+
+// FormAttribution is the first and last touch carried by FormSubmittedEvent.
+type FormAttribution struct {
+	First *FormTouch `json:"first,omitempty"`
+	Last  *FormTouch `json:"last,omitempty"`
 }
 
 // PageContext is the value filtered by render.page for one public page view.

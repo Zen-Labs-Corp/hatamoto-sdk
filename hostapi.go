@@ -36,6 +36,8 @@ const (
 	ErrUnavailable      = "unavailable" // the backing service is not configured or reachable
 	ErrInternal         = "internal"
 	ErrUnknownFunction  = "unknown_function"
+	ErrPhaseDenied      = "phase_denied" // the function is not available in this run phase, or outside a run
+	ErrNotOwned         = "not_owned"    // the object belongs to the owner or another source; a run may not change it
 )
 
 // HostError is the typed error of a failed host call.
@@ -52,32 +54,22 @@ func (e *HostError) Error() string { return fmt.Sprintf("hatamoto host: %s: %s",
 
 // Host function names, by capability.
 const (
-	FnEntitiesGet    = "entities.get"    // {id} | {path} | {slug, parent_id?, schema_slug? (with parent_id)} -> Entity
-	FnEntitiesList   = "entities.list"   // {schema_slug, status?, search?, limit?, cursor?} -> {items, next_cursor}
-	FnEntitiesCreate = "entities.create" // {schema_slug, name, slug?, locale?, parent_id?, attributes} -> Entity
-	FnEntitiesUpdate = "entities.update" // {id, name?, slug?, locale?, parent_id? (null = root), attributes?} -> Entity
-	FnEntitiesStatus = "entities.set_status"
-	FnEntitiesDelete = "entities.delete"
+	FnEntitiesGet  = "entities.get"  // {id} | {path} | {slug, parent_id?, schema_slug? (with parent_id)} -> Entity; a locale-prefixed path is read only for plugins requiring 0.15+
+	FnEntitiesList = "entities.list" // {schema_slug, status?, search?, limit?, cursor?} -> {items, next_cursor}
+	// FnEntitiesTranslations lists the entities in the translation group of
+	// {id}: [{id, locale, status, path?}], empty when it has none.
+	FnEntitiesTranslations = "entities.translations"
 
 	FnTermsList = "terms.list" // {kind?, search?, limit?} -> {items}
 	FnTermsGet  = "terms.get"  // {kind, slug} -> Term
-	FnTermsSave = "terms.save" // {kind, slug, name, description?} -> Term (create or update)
-	FnTermsDel  = "terms.delete"
 
 	FnMenusGet  = "menus.get"  // {slug} -> Menu with items
 	FnMenusList = "menus.list" // {} -> {items}
-	FnMenusSave = "menus.save" // {slug, name, location?} -> Menu (create or update)
 
-	FnMenusAddItem = "menus.add_item"    // {menu_slug, label, link_type, url?, entity_id?, parent_id?, open_in_new_tab?}
-	FnMenusDelItem = "menus.delete_item" // {id}
+	FnMediaGet  = "media.get"  // {id}
+	FnMediaList = "media.list" // {limit?, offset?}
 
-	FnMediaGet    = "media.get"    // {id}
-	FnMediaList   = "media.list"   // {limit?, offset?}
-	FnMediaUpload = "media.upload" // {filename, mime_type, data_b64} -> Media
-
-	FnRedirectsList   = "redirects.list"
-	FnRedirectsCreate = "redirects.create" // {from_path, to_path, status_code?}
-	FnRedirectsDelete = "redirects.delete" // {id}
+	FnRedirectsList = "redirects.list"
 
 	FnFormsList        = "forms.list"
 	FnFormsSubmissions = "forms.submissions" // {form_slug, limit?, offset?}
@@ -94,6 +86,36 @@ const (
 	FnDBExec      = "db.exec"      // {sql, args?} -> {rows_affected}
 )
 
+// Host functions of a run (SDK 0.17.0). They work only inside a run, in the
+// phase noted, and need no permission. Content is written by staging items
+// into the run's changeset; nothing is live until the owner publishes it.
+const (
+	FnRunInfo       = "run.info"       // both phases: {} -> RunInfo
+	FnRunCheckpoint = "run.checkpoint" // both phases: {cursor} -> {}; the cursor of the next on_run_step
+	FnRunProgress   = "run.progress"   // both phases: {done, total?, message?} -> {}
+	FnRunFinish     = "run.finish"     // both phases: {summary?} -> {}; ends the current phase
+	FnRunFail       = "run.fail"       // both phases: {reason} -> {}; fails the run and discards its changeset
+
+	FnUploadRead     = "upload.read"      // fetch: {upload_id, offset, len} -> {data_b64, size, eof}
+	FnBufferPut      = "buffer.put"       // fetch: {key, value_b64} -> {}
+	FnBufferGet      = "buffer.get"       // transform: {key} -> {found, value_b64}
+	FnBufferList     = "buffer.list"      // transform: {prefix?, after?, limit?} -> {keys, next}
+	FnMediaImportURL = "media.import_url" // fetch: {url, filename?} -> {handle}
+
+	FnSiteInfo          = "site.info"           // transform: {} -> SiteInfo
+	FnEntitiesSlugTaken = "entities.slug_taken" // transform: {schema, slug, locale?} -> {taken}
+
+	FnChangesetEntityUpsert   = "changeset.entity.upsert"   // transform: EntityUpsert -> UpsertResult
+	FnChangesetTermUpsert     = "changeset.term.upsert"     // transform: TermUpsert -> UpsertResult
+	FnChangesetPersonUpsert   = "changeset.person.upsert"   // transform: PersonUpsert -> UpsertResult
+	FnChangesetMediaAttach    = "changeset.media.attach"    // transform: MediaAttach -> UpsertResult
+	FnChangesetMenuUpsert     = "changeset.menu.upsert"     // transform: MenuUpsert -> UpsertResult
+	FnChangesetRedirectUpsert = "changeset.redirect.upsert" // transform: RedirectUpsert -> UpsertResult
+	FnChangesetDelete         = "changeset.delete"          // transform: {kind, source_key} -> UpsertResult
+	FnChangesetPropose        = "changeset.propose"         // transform: Proposal -> {}
+	FnChangesetMediaAlt       = "changeset.media.alt"       // transform: MediaAlt -> UpsertResult
+)
+
 // HTTPRequest is the input of an `http_handle` export: a request to one of the
 // plugin's declared routes.
 type HTTPRequest struct {
@@ -108,6 +130,9 @@ type HTTPRequest struct {
 	Body       string              `json:"body,omitempty"`
 	BodyB64    string              `json:"body_b64,omitempty"` // set instead of Body when the body is not UTF-8
 	User       *HTTPUser           `json:"user,omitempty"`     // nil on public routes
+	// Cookies are the request cookies the manifest's `cookies` list declares,
+	// by their short names. Public routes only.
+	Cookies map[string]string `json:"cookies,omitempty"`
 }
 
 // HTTPUser is the signed-in user behind an admin route request.
@@ -124,6 +149,10 @@ type HTTPResponse struct {
 	Headers map[string]string `json:"headers,omitempty"`
 	Body    string            `json:"body,omitempty"`
 	BodyB64 string            `json:"body_b64,omitempty"`
+	// SetCookies are cookies to set on a public route's response: declared
+	// names only, stored as hmp_<plugin>_<name>, with the limits and flags of
+	// render.page's cookies. An admin route that sets one fails.
+	SetCookies []SetCookie `json:"set_cookies,omitempty"`
 }
 
 // CronEvent is the input of an `on_cron_<name>` export.
