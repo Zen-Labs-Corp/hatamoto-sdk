@@ -7,7 +7,7 @@ on nothing but the standard library, never imports Hatamoto core packages, and t
 module has its own `go.mod`.
 
 ```sh
-go get hatamoto.dev/sdk@v0.18.0
+go get hatamoto.dev/sdk@v0.19.0
 ```
 
 Releases are plain `vX.Y.Z` tags of this repository, where `X.Y.Z` is the `Version`
@@ -36,11 +36,12 @@ Semantic, with the pre-1.0 rules in [STABILITY.md](STABILITY.md):
 while the SDK is 0.x a minor release may change behaviour, but only after the change was announced as a
 deprecation notice in an earlier SDK minor and recorded in the release notes. A patch never breaks a covered surface, except a security exception, which says so in its
 release note and advisory. `Version` is the current version; `CompatibleWith` lists every
-earlier 0.x minor from 0.5.0, and a host keeps serving all of them until 1.0. A plugin declares the oldest range it
-needs in `plugin.json` (today `"sdk": "^0.11"`, so hosts before v0.31.0 still load it); a host refuses a plugin whose range matches neither.
+earlier 0.x minor from 0.5.0, and a host keeps serving all of them until the SDK reaches 1.0. A plugin declares the oldest range it
+needs in `plugin.json` (the examples in the core repository declare `^0.8` or `^0.11`, so older hosts still load them); a host refuses a plugin whose range matches neither.
 
 | SDK | Change |
 |---|---|
+| 0.19.0 | Go 1.27 is the SDK floor. The SDK uses the JSON v2 packages; `json.RawMessage` is an alias of `jsontext.Value` in Go 1.27, so types naming `jsontext.Value` are source compatible. Wire bytes are unchanged, also for plugin types the guest marshals (the v1 `omitempty`, `time.Duration`, byte-array and method behaviours are pinned, and the guest reads them back the same way); a struct with two fields sharing a JSON name now fails to marshal |
 | 0.18.0 | Additive over 0.17: `request_headers` and `csp` in `plugin.json`, declared cookies on public routes, `translation_of` on `changeset.entity.upsert`, `caption` and `credit` on `changeset.media.attach`, `changeset.media.alt`, public content reads in the run fetch phase, content types shipped as `schemas/<name>.json`. Purely additive |
 | 0.17.0 | Runs. The 12 direct write host functions (`entities.create`, `entities.update`, `entities.set_status`, `entities.delete`, `terms.save`, `terms.delete`, `menus.save`, `menus.add_item`, `menus.delete_item`, `media.upload`, `redirects.create`, `redirects.delete`) and the five `*.write` permissions are removed; a manifest asking for one is refused. A plugin declares a `runs` block and exports `on_run_step`; `run.*`, `upload.read`, `buffer.*`, `media.import_url`, `site.info`, `entities.slug_taken` and `changeset.*` stage content into a changeset the owner publishes. New error codes `phase_denied` and `not_owned`; guest wrappers in `guest`. A break for plugins that wrote content |
 | 0.16.0 | `render.site_graph` filter (`SiteGraph`): add keys to the Organization, LocalBusiness and WebSite nodes of the site graph and append nodes. Purely additive |

@@ -1,6 +1,7 @@
 # Stability and compatibility
 
-Hatamoto is pre-1.0. This document says which parts of Hatamoto you can build on, how long old
+Hatamoto core is at v1; its plugin SDK (`hatamoto.dev/sdk`) is still pre-1.0. Until the SDK reaches 1.0,
+every covered surface, product and SDK alike, follows the pre-1.0 rules below. This document says which parts of Hatamoto you can build on, how long old
 plugins keep working, and how a breaking change is announced. It is written for plugin and theme
 authors and for people who run their own server. Where a promise is backed by a test or a script,
 the name is given. Where it is project policy only, the text says so. Paths in code spans, such as
@@ -10,9 +11,9 @@ the name is given. Where it is project policy only, the text says so. Paths in c
 
 | Thing | Scheme | Today |
 |---|---|---|
-| Product (the `hatamoto` binary) | `vX.Y.Z`, git tag `vX.Y.Z` | `v0.31.0` |
+| Product (the `hatamoto` binary) | `vX.Y.Z`, git tag `vX.Y.Z` | `v1.1.0` |
 | Go module for the product source | `hatamoto.dev/core`, git tag `backend/vX.Y.Z`, created by `scripts/tag-release.sh` | follows the product |
-| Plugin SDK (`hatamoto.dev/sdk`) | semantic, git tag `vA.B.C` in the public `Zen-Labs-Corp/hatamoto-sdk` repository, exported from this repository by `scripts/publish-sdk.sh` | `0.18.0` (`0.12.0` shipped with product `v0.31.0`) |
+| Plugin SDK (`hatamoto.dev/sdk`) | semantic, git tag `vA.B.C` in the public `Zen-Labs-Corp/hatamoto-sdk` repository, exported from this repository by `scripts/publish-sdk.sh` | `0.19.0` (shipped with product `v1.1.0`) |
 | Plugin manifest | the `sdk` range in `plugin.json` | follows the SDK |
 | Theme contract | `data-hm-contract` on `<html>` | `1` |
 | HTTP API | `/api/v1` path prefix | `v1` |
@@ -25,7 +26,7 @@ that defines it. The rules are in the sections after the table.
 Levels:
 
 - **stable (pre-1.0 rules)**: you can build on it. A change follows the rule named in the third column,
-  and the 0.x rules in "What 0.x means" apply until 1.0.
+  and the rules in "What the pre-1.0 rules mean" apply until the SDK reaches 1.0.
 - **experimental**: may change without notice. The one planned experimental surface is the content delivery API,
   which is not yet shipped. Anything marked experimental in its own documentation gets this level.
 - **not covered**: no promise.
@@ -60,21 +61,24 @@ The SDK is bumped to 0.13.0 for `locale`, to 0.14.0 for the form attribution and
 change under the same version (`scripts/publish-sdk.sh` refuses to retag a different tree) and 0.10 and
 0.11 set the precedent of shipping additive payload changes as a minor.
 
+The 0.19.0 bump raises the Go floor of the SDK module to 1.27 and moves it to the JSON v2 packages. Wire bytes are unchanged (also for plugin-author types the guest marshals and reads back; only a struct with two fields sharing a JSON name now fails), and `json.RawMessage` is an alias of `jsontext.Value` in Go 1.27, so the source change is compatible.
+
 The 0.18.0 bump is additive over 0.17 (eight items, listed in `version.go`).
 
 The 0.17.0 bump is not additive: it removes the direct content write permissions and functions in favour of runs and changesets, shipped with core 1.1.0 (see the one-time exception below).
 
-## What 0.x means
+## What the pre-1.0 rules mean
 
-- A patch release (`0.N.x`) never breaks a covered surface, except a security exception (see "Security
+- A patch release (`0.N.x` of the SDK, `1.N.x` of the product) never breaks a covered surface, except a security exception (see "Security
   exception"), which says so in its release note and advisory.
-- A minor release (`0.N.0`) may change the behaviour of a covered surface, but only through the
-  deprecation process below. Until 1.0, "minor" is where breaking changes live, so read the release
+- A minor release (`0.N.0` of the SDK, `1.N.0` of the product) may change the behaviour of a covered surface, but only through the
+  deprecation process below. Until the SDK reaches 1.0, "minor" is where breaking changes live, so read the release
   notes of every minor.
-- For the updater a `0.N.0` release is a minor: it installs automatically under the owner's update
+- For the updater a minor release (such as `1.N.0`) is a minor: it installs automatically under the owner's update
   policy, and its migrations may only expand the schema. A change that contracts the schema (drop,
   rename, retype) needs a major release. See "Release and update protocol".
-- From 1.0 the usual semantic versioning applies: no breaking change inside a major version.
+- Once the SDK reaches 1.0, the usual semantic versioning applies to every covered surface: no breaking
+  change inside a major version.
 
 ### One-time exception: core 1.1.0 and SDK 0.17
 
@@ -98,11 +102,11 @@ The `sdk` range in `plugin.json` is the handshake between a plugin and a host. A
 SDK version (`sdk.Version`) and every version in `sdk.CompatibleWith`, and refuses a plugin whose range
 matches none of them.
 
-- Every 0.x SDK minor from 0.5 stays served until 1.0. Today `Version` is `0.18.0` and
-  `CompatibleWith` is `0.5.0` to `0.17.0`. Dropping an entry is a breaking change and is announced like
+- Every 0.x SDK minor from 0.5 stays served until SDK 1.0. Today `Version` is `0.19.0` and
+  `CompatibleWith` is `0.5.0` to `0.18.0`. Dropping an entry is a breaking change and is announced like
   any other.
-- A newer host serves older ranges. An older host refuses a newer range: a host that serves 0.17 refuses
-  a plugin that declares `^0.18`. Declare the oldest range your plugin needs.
+- A newer host serves older ranges. An older host refuses a newer range: a host that serves 0.18 refuses
+  a plugin that declares `^0.19`. Declare the oldest range your plugin needs.
 - Three tests pin this in `backend/pkg/sdk`: `TestVersionPinned` (the version constant),
   `TestCompatibleWithPinned` (the exact list, sorted, without the current version) and
   `TestCompatibleWithOldHost` (a host that reports 0.12.0 refuses `^0.13` and accepts `^0.12`,
@@ -120,7 +124,7 @@ matches none of them.
 - Gating an existing capability behind a permission is a behaviour change. It needs an SDK minor bump,
   a release note and, unless it is a security exception, a deprecation notice first.
 - Removing the direct content write permissions in SDK 0.17 is the one-time exception described under
-  "What 0.x means", not a precedent.
+  "What the pre-1.0 rules mean", not a precedent.
 - A permission is never granted automatically: the owner grants it under Plugins > Permissions. An
   update that widens reach (new allowed hosts, `http.fetch.any`, `builder.island`, `site.scripts`) also
   needs the owner's confirmation before it installs (`ConfirmationRequired` in
@@ -156,7 +160,7 @@ The release notes for v0.31.0 describe the change and the version it belongs to.
   removal, whichever is later.
 - **`/api/v1`** keeps working for at least 12 months after `/api/v2` ships.
 - A notice is a release note headed "Deprecated" plus a note in the documentation of the surface.
-- After 1.0 nothing is removed inside a major version.
+- After SDK 1.0 nothing is removed inside a major version.
 
 ## Security exception
 
