@@ -26,6 +26,8 @@ const (
 
 	// MaxStandingFields caps the fields and the schemas of a standing approval.
 	MaxStandingFields = 16
+	// MaxStandingLinkFields caps standing_approval.create.link_fields.
+	MaxStandingLinkFields = 8
 	// DefaultStandingPerHour is the changes an hour a standing approval allows
 	// when max_per_hour is 0, and its ceiling.
 	DefaultStandingPerHour = 200
@@ -75,7 +77,8 @@ type Run struct {
 type StandingApproval struct {
 	// Fields are the attribute keys the run may change, for example "price".
 	Fields []string `json:"fields"`
-	// Schemas are the entity schema slugs the rule applies to.
+	// Schemas are the content type slugs the rule applies to (the
+	// entity_schema slug rule, dashes allowed).
 	Schemas []string `json:"schemas"`
 	// MaxPerHour caps the changes published an hour; 0 means
 	// DefaultStandingPerHour, and the value may not exceed it.
@@ -91,6 +94,10 @@ type StandingApproval struct {
 type StandingCreate struct {
 	Schemas    []string `json:"schemas"`
 	MaxPerHour int      `json:"max_per_hour"`
+	// LinkFields are top-level attribute keys (each a plain {"type":"string","format":"uri"}
+	// field of a create schema) whose value may be one https link in an automatic create.
+	// An older host ignores it and such creates wait for review. SDK 0.28.
+	LinkFields []string `json:"link_fields,omitempty"`
 }
 
 func (m Manifest) validateStanding(r Run) error {
@@ -120,10 +127,20 @@ func (m Manifest) validateStanding(r Run) error {
 		if len(list) == 0 || len(list) > MaxStandingFields {
 			return fmt.Errorf("sdk: plugin %q: run %q: standing_approval.%s needs 1..%d entries", m.Name, r.Name, label, MaxStandingFields)
 		}
+		// fields are attribute keys; schemas and create.schemas accept an
+		// identifier (what 0.27.0 allowed) or a content type slug (dashes).
+		match := func(v string) bool { return identPattern.MatchString(v) }
+		want := identPattern.String()
+		if label != "fields" {
+			match = func(v string) bool {
+				return identPattern.MatchString(v) || len(v) <= MaxEntitySchemaLen && entitySchemaPattern.MatchString(v)
+			}
+			want = identPattern.String() + " or " + entitySchemaPattern.String()
+		}
 		seen := map[string]bool{}
 		for _, v := range list {
-			if !identPattern.MatchString(v) || seen[v] {
-				return fmt.Errorf("sdk: plugin %q: run %q: standing_approval.%s: bad or duplicate entry %q (want %s)", m.Name, r.Name, label, v, identPattern)
+			if !match(v) || seen[v] {
+				return fmt.Errorf("sdk: plugin %q: run %q: standing_approval.%s: bad or duplicate entry %q (want %s)", m.Name, r.Name, label, v, want)
 			}
 			seen[v] = true
 		}
@@ -132,6 +149,18 @@ func (m Manifest) validateStanding(r Run) error {
 		for _, v := range c.Schemas {
 			if !slices.Contains(sa.Schemas, v) {
 				return fmt.Errorf("sdk: plugin %q: run %q: standing_approval.create.schemas must be listed in standing_approval.schemas", m.Name, r.Name)
+			}
+		}
+		if c.LinkFields != nil {
+			if len(c.LinkFields) == 0 || len(c.LinkFields) > MaxStandingLinkFields {
+				return fmt.Errorf("sdk: plugin %q: run %q: standing_approval.create.link_fields needs 1..%d entries", m.Name, r.Name, MaxStandingLinkFields)
+			}
+			seen := map[string]bool{}
+			for _, k := range c.LinkFields {
+				if !entityFieldPattern.MatchString(k) || seen[k] {
+					return fmt.Errorf("sdk: plugin %q: run %q: standing_approval.create.link_fields: bad or duplicate key %q (top-level attribute keys, want %s)", m.Name, r.Name, k, entityFieldPattern)
+				}
+				seen[k] = true
 			}
 		}
 	}
